@@ -7,6 +7,33 @@ in `scores/history.jsonl`; behavioral contracts live in
 `Packages/TypeEngine/Scenarios/*.scenarios` (scenario comments cite sessions);
 architecture in `docs/adr/`. Newest first.
 
+## 2026-10-12 — 1.3 (26) replaces 1.3 (25) in App Store review
+
+- **Why**: 1.3 (25) typed letters from the hidden key grid under the emoji
+  keyboard. `KeyTouchRouter` resolves a touch by frame alone and the letter
+  keys stay in the hierarchy at zero opacity; found by the owner on device
+  three days after submission. The same bug affected the number pad.
+- **Built from** `cce42e0` ("keyboard: hidden letter keys no longer take
+  routed touches"), the only change since `7284bd5`. The fix was checked by
+  the owner on one device; no automated coverage.
+- **Upload**: 1.3 (26), IPA SHA-256
+  `c4530db14bfcf168302fec03ca4fc7e5e0507ce3f77a968103d55676907f94cd`,
+  processed `VALID` with exempt encryption under build ID
+  `2da591bf-11f2-43e6-be32-824d700b42d1`.
+- **App Store**: review submission `a78133f1-1fbc-4a4e-9e67-26cacb1088c0`
+  (build 25) was cancelled while still `WAITING_FOR_REVIEW`; `asccli` has no
+  cancel, so this was a direct API `PATCH /v1/reviewSubmissions/{id}` with
+  `canceled: true`. Build 26 was attached to version
+  `d2603f63-94d4-4de3-848b-76360bfe6b7f` and resubmitted as
+  `68f50f2d-95db-4a5a-b8d7-ce553c18971a`, `WAITING_FOR_REVIEW` on 2026-10-12.
+  The version lost its place in the queue.
+- **TestFlight**: build 26 assigned to `Innri prófun` and `Vinir`; Beta App
+  Review submission `2da591bf-11f2-43e6-be32-824d700b42d1`
+  `WAITING_FOR_REVIEW`.
+- **Open**: a gradient blur over long-press menus near the top of the
+  keyboard, reported on device, not reproduced (clean on the iOS 18.4
+  simulator; the enablement test does not run on the iOS 26.5 simulator).
+
 ## 2026-10-09 — App Store 1.3 (25) submission
 
 - **Build**: the TestFlight build below, 1.3 (25), build ID
