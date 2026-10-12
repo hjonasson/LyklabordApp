@@ -185,7 +185,13 @@ public struct KeyboardView<
 
         return VStack(spacing: 0) {
             toolbar
+            // Lyklaborð fork: while the emoji keyboard or number pad covers
+            // the keys they stay in the hierarchy at zero opacity. SwiftUI
+            // stops hit-testing an invisible view, but a `KeyTouchRouter`
+            // goes by frame alone, so hidden letter keys caught every tap
+            // on the emoji grid. No router for hidden keys.
             keyboardView
+                .routedKeyTouches(enabled: shouldShowKeyboard)
         }
         .autocorrectionDisabled(with: autocompleteContext)
         .opacity(shouldShowKeyboard ? 1 : 0)
@@ -333,6 +339,22 @@ public extension KeyboardView {
     typealias StandardToolbar = Autocomplete.Toolbar<Autocomplete.ToolbarItem, Autocomplete.ToolbarSeparator>
 }
 
+
+private extension View {
+
+    /// Remove the ``KeyTouchRouter`` from the environment when disabled, so
+    /// gesture buttons below unregister and fall back to a SwiftUI gesture.
+    @ViewBuilder
+    func routedKeyTouches(enabled: Bool) -> some View {
+        #if os(iOS)
+        transformEnvironment(\.keyTouchRouter) { router in
+            if !enabled { router = nil }
+        }
+        #else
+        self
+        #endif
+    }
+}
 
 // MARK: - Views
 
