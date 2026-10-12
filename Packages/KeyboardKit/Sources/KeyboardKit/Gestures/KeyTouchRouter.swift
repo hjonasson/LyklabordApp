@@ -50,8 +50,18 @@ public final class KeyTouchRouter {
         targets[id] = Target(frame: frame, changed: changed, ended: ended, cancelled: cancelled)
     }
 
+    /// Remove a button. If a finger is still down on it, that press is
+    /// cancelled first: the button will never see the touch end, and a
+    /// press left open keeps its long-press timer running. (The emoji key
+    /// switches keyboards on press, which hides and unregisters the key
+    /// under the finger; its long-press menu then opened over the emoji
+    /// keyboard 0.4 s later.)
     func unregister(id: UUID) {
-        targets[id] = nil
+        guard let target = targets.removeValue(forKey: id) else { return }
+        let touches = active.filter { $0.value.id == id }.map(\.key)
+        guard !touches.isEmpty else { return }
+        touches.forEach { active[$0] = nil }
+        target.cancelled()
     }
 }
 
