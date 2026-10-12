@@ -86,6 +86,10 @@ Probe and harness, also uncommitted and **not meant to ship switched on**:
 - In `KeyboardViewController`: `KeyLatencyProbe.start()` and the file sink in `viewDidLoad`, and `TouchLagRecognizer` (raw touch arrival) added in `viewDidAppear`. All carry an "investigation only" comment. Timings and counts only; no keys or text.
 - `ScreenshotUITests.testProbeTyping` is a temporary test.
 
+## Superseded: the router was replaced on 2026-10-12
+
+`KeyTouchRouter` and the per-button routing described below shipped in 1.3 (25) and (26) and produced two more regressions of the same kind (letters typed under the emoji keyboard; the emoji key's long-press menu opening on a tap). Since 1.3 (27) one module, `KeyTouchTracker`, owns key-grid touches, fed by `KeyTouchSurface`; see the 2026-10-12 entry in `docs/WAVES.md`. The measurements and the gate finding above still stand. No probe run was taken on the new path.
+
 ## Two regressions the raw-touch path caused, both fixed
 
 - **Top-row touches also tapped the suggestion bar.** The bar's tap area reaches down over the top of the top row. Each key's SwiftUI gesture used to claim those touches; with the gesture removed, one touch both typed a letter and tapped a suggestion (10 such taps in one recorded session, letters replaced by a space). Routed keys now keep a do-nothing SwiftUI gesture whose only job is to claim the touch.

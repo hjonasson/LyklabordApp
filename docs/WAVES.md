@@ -7,6 +7,50 @@ in `scores/history.jsonl`; behavioral contracts live in
 `Packages/TypeEngine/Scenarios/*.scenarios` (scenario comments cite sessions);
 architecture in `docs/adr/`. Newest first.
 
+## 2026-10-12 — 1.3 (27) replaces 1.3 (26): key-grid touch tracker
+
+- **Why**: 1.3 (26) fixed the emoji keyboard typing letters but introduced
+  the emoji key's long-press menu opening on a plain tap (the key switches
+  keyboards on press, the grid was hidden under the finger, the press never
+  ended). Third bug of the same kind: `KeyTouchRouter` kept a frame table
+  beside SwiftUI's hit-testing and each disagreement shipped. The owner asked
+  for a re-engineering instead of a fourth patch.
+- **What changed** (`cafcbf9`, with `edbd27b` before it): `KeyTouchTracker`
+  owns every decision about a touch on the key grid, with no SwiftUI or
+  UIKit state and an injected clock. Its input is the list of live keys; a
+  press on a key that stops being live is cancelled. `KeyTouchSurface` is
+  the UIKit recognizer and the adapter onto the action handler, callouts,
+  touch evidence and the shared repeat timer. Key views under the grid
+  publish frame and action through a preference and install no gesture
+  beyond a do-nothing one that keeps the suggestion bar from also taking
+  the touch. `KeyTouchRouter` and the routing code in `GestureButton` are
+  gone. The emoji picker (ISEmojiView, a UIKit collection view) is
+  untouched.
+- **Gates**: 24 tracker tests driven by synthetic touches, including the
+  three device regressions; KeyboardKit 425 tests. Simulator pass on iOS
+  18.4 (typing with autocorrect, long-press menu with a slide, emoji
+  switch, emoji tap). Rig unit tests 25/26:
+  `testCombinedCatalogAndSearchHeapStaysWithinReplacementBudget` measures
+  2.62–2.64 MB against a 2.5 MB limit; it also failed intermittently on
+  2026-10-07 before this work and was not investigated. Owner's device pass
+  on an iPhone 14 Pro: "feels solid". No probe numbers were taken for this
+  build, and nothing ran on iOS 26 in the simulator.
+- **Upload**: 1.3 (27), IPA SHA-256
+  `db910a23e3c6a379ffe266c80d1fc0e9d06f47b8be2f63c65a97c8ffecaa8149`,
+  processed `VALID` with exempt encryption under build ID
+  `b28a1c43-3064-4470-a3f2-c9b9aaf3f9a3`.
+- **App Store**: review submission `68f50f2d-95db-4a5a-b8d7-ce553c18971a`
+  (build 26) cancelled while `WAITING_FOR_REVIEW`, by the same direct API
+  call as below. Build 27 attached to version
+  `d2603f63-94d4-4de3-848b-76360bfe6b7f` and resubmitted as
+  `45cf0341-4077-430e-9127-6338330c55a9`, `WAITING_FOR_REVIEW` on 2026-10-12.
+- **TestFlight**: build 27 assigned to `Innri prófun` and `Vinir`; Beta App
+  Review submission `b28a1c43-3064-4470-a3f2-c9b9aaf3f9a3`
+  `WAITING_FOR_REVIEW`.
+- **Open**: the gradient blur over long-press menus near the top of the
+  keyboard (not reproduced), and the ~10 ms of main-thread work after each
+  release noted in `research/tap-delay.md`.
+
 ## 2026-10-12 — 1.3 (26) replaces 1.3 (25) in App Store review
 
 - **Why**: 1.3 (25) typed letters from the hidden key grid under the emoji
