@@ -4,7 +4,7 @@
 //
 //  Lyklaborð fork: the gesture button's own drag value, so a press can be
 //  driven by something other than a SwiftUI `DragGesture` (whose value has
-//  no public initializer). See `KeyTouchRouter`.
+//  no public initializer). See `KeyTouchTracker`.
 //
 
 #if os(iOS) || os(macOS) || os(watchOS) || os(visionOS)

@@ -114,10 +114,19 @@ public extension CalloutContext {
         _ action: KeyboardAction?,
         in geo: GeometryProxy
     ) {
+        updateInputAction(action, frame: geo.frame(in: .named(coordinateSpace)))
+    }
+
+    /// Lyklaborð fork: the same, for a caller that already has the button's
+    /// frame in ``coordinateSpace`` (`KeyTouchSurface`).
+    func updateInputAction(
+        _ action: KeyboardAction?,
+        frame: CGRect
+    ) {
         if action?.inputCalloutText == nil { return }
         lastInputUpdate = Date()
         inputAction = action
-        buttonFrame = geo.frame(in: .named(coordinateSpace))
+        buttonFrame = frame
     }
 
     /// Update the secondary actions for a certain action.
@@ -127,10 +136,26 @@ public extension CalloutContext {
         in geo: GeometryProxy,
         alignment: HorizontalAlignment? = nil
     ) {
+        updateSecondaryActions(
+            actions,
+            for: action,
+            frame: geo.frame(in: .named(coordinateSpace)),
+            alignment: alignment
+        )
+    }
+
+    /// Lyklaborð fork: the same, for a caller that already has the button's
+    /// frame in ``coordinateSpace`` (`KeyTouchSurface`).
+    func updateSecondaryActions(
+        _ actions: [KeyboardAction]?,
+        for action: KeyboardAction,
+        frame: CGRect,
+        alignment: HorizontalAlignment? = nil
+    ) {
         let actions = actions ?? _calloutService?.calloutActions(for: action)
         guard let actions else { return }
-        buttonFrame = geo.frame(in: .named(coordinateSpace))
-        secondaryActionsAlignment = alignment ?? resolveSecondaryActionAlignment(for: geo)
+        buttonFrame = frame
+        secondaryActionsAlignment = alignment ?? resolveSecondaryActionAlignment()
         secondaryActions = isLeading ? actions : actions.reversed()
         secondaryActionsIndex = secondaryActionStartIndex
         guard !secondaryActions.isEmpty else { return }
@@ -218,9 +243,7 @@ private extension CalloutContext {
         index >= 0 && index < secondaryActions.count
     }
 
-    func resolveSecondaryActionAlignment(
-        for geo: GeometryProxy
-    ) -> HorizontalAlignment {
+    func resolveSecondaryActionAlignment() -> HorizontalAlignment {
         #if os(iOS)
         let center = UIScreen.main.bounds.size.width / 2
         let isTrailing = buttonFrame.origin.x > center

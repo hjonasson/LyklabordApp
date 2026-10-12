@@ -232,14 +232,14 @@ final class KeyboardViewController: KeyboardInputViewController {
 
     // MARK: - Appearance
 
-    /// Delivers raw touches to the keys (see `KeyTouchRouter` for why
+    /// Delivers raw touches to the key grid (see `KeyTouchSurface` for why
     /// SwiftUI's own gesture is too late on a keyboard window).
-    private let keyTouchRouter = KeyTouchRouter()
+    private let keyTouchSurface = KeyTouchSurface()
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        if keyTouchRouter.recognizer.view == nil {
-            view.addGestureRecognizer(keyTouchRouter.recognizer)
+        if keyTouchSurface.recognizer.view == nil {
+            view.addGestureRecognizer(keyTouchSurface.recognizer)
         }
         syncKeyLatencyProbe()
     }
@@ -523,7 +523,7 @@ final class KeyboardViewController: KeyboardInputViewController {
                     }
             )
             } // SpaceCommitHintContainer
-            .keyTouchRouter(LyklabordKeyboardMetrics.usesRawTouchRouting ? self.keyTouchRouter : nil)
+            .keyTouchSurface(LyklabordKeyboardMetrics.usesRawTouchRouting ? self.keyTouchSurface : nil)
         }
     }
 }

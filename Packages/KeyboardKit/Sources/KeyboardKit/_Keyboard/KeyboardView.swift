@@ -157,6 +157,12 @@ public struct KeyboardView<
     let calloutContext: CalloutContext
     @ObservedObject var keyboardContext: KeyboardContext
 
+    #if os(iOS)
+    @Environment(\.keyTouchSurface) private var keyTouchSurface
+    @Environment(\.keyboardCalloutActionsBuilder) private var calloutActionsBuilder
+    @Environment(\.gestureButtonConfiguration) private var gestureButtonConfiguration
+    #endif
+
     public var body: some View {
         let _ = KeyLatencyProbe.count("body.KeyboardView")
         if keyboardContext.isKeyboardCollapsed {
@@ -185,13 +191,7 @@ public struct KeyboardView<
 
         return VStack(spacing: 0) {
             toolbar
-            // Lyklaborð fork: while the emoji keyboard or number pad covers
-            // the keys they stay in the hierarchy at zero opacity. SwiftUI
-            // stops hit-testing an invisible view, but a `KeyTouchRouter`
-            // goes by frame alone, so hidden letter keys caught every tap
-            // on the emoji grid. No router for hidden keys.
-            keyboardView
-                .routedKeyTouches(enabled: shouldShowKeyboard)
+            touchTrackedKeyboardView
         }
         .autocorrectionDisabled(with: autocompleteContext)
         .opacity(shouldShowKeyboard ? 1 : 0)
@@ -340,21 +340,64 @@ public extension KeyboardView {
 }
 
 
-private extension View {
+// MARK: - Key touches
 
-    /// Remove the ``KeyTouchRouter`` from the environment when disabled, so
-    /// gesture buttons below unregister and fall back to a SwiftUI gesture.
+private extension KeyboardView {
+
+    /// The key grid, taking its touches from the keyboard's
+    /// `KeyTouchSurface` when it was given one.
     @ViewBuilder
-    func routedKeyTouches(enabled: Bool) -> some View {
+    var touchTrackedKeyboardView: some View {
         #if os(iOS)
-        transformEnvironment(\.keyTouchRouter) { router in
-            if !enabled { router = nil }
-        }
+        trackingKeyTouches(keyboardView)
         #else
-        self
+        keyboardView
         #endif
     }
 }
+
+#if os(iOS)
+extension KeyboardView {
+
+    /// The grid reports its keys through a preference; the surface is told
+    /// separately whether the grid is live, because the grid stays laid out
+    /// at zero opacity under the emoji keyboard and the number pad, and
+    /// frames alone cannot say so.
+    @ViewBuilder
+    func trackingKeyTouches<Grid: View>(_ grid: Grid) -> some View {
+        if let surface = keyTouchSurface {
+            grid
+                .environment(\.trackingKeyTouchSurface, surface)
+                .onPreferenceChange(KeyTouchKeysPreference.self) { keys in
+                    bind(surface)
+                    surface.setKeys(keys)
+                }
+                .onAppear {
+                    bind(surface)
+                    surface.setGridLive(shouldShowKeyboard)
+                }
+                .onChange(of: shouldShowKeyboard) { isLive in
+                    surface.setGridLive(isLive)
+                }
+                .onDisappear {
+                    surface.setGridLive(false)
+                }
+        } else {
+            grid
+        }
+    }
+
+    private func bind(_ surface: KeyTouchSurface) {
+        surface.bind(
+            actionHandler: actionHandler,
+            calloutContext: calloutContext,
+            repeatTimer: repeatTimer,
+            calloutActions: calloutActionsBuilder,
+            configuration: gestureButtonConfiguration
+        )
+    }
+}
+#endif
 
 // MARK: - Views
 

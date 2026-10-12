@@ -20,8 +20,9 @@ enum LyklabordKeyboardMetrics {
     /// reference keyboard uses roughly 54pt rows in portrait.
     static let maxPortraitRowHeight: CGFloat = 54
 
-    /// Keys read raw UIKit touches through `KeyTouchRouter` instead of a
-    /// SwiftUI gesture. `false` restores KeyboardKit's stock gesture path.
+    /// The key grid takes raw UIKit touches through `KeyTouchSurface`
+    /// instead of SwiftUI gestures. `false` restores KeyboardKit's stock
+    /// gesture path.
     static let usesRawTouchRouting = true
 
     /// Long-press menu sized to fit above the top letter row (see the

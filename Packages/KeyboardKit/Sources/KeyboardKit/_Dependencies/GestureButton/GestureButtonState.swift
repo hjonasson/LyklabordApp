@@ -24,9 +24,6 @@ class GestureButtonState: ObservableObject {
     
     let repeatTimer: GestureButtonTimer
 
-    /// Identifies this button to a ``KeyTouchRouter``.
-    let routerID = UUID()
-
     /// Incremented on every press, so delayed work can tell whether the
     /// press that scheduled it is still the current one.
     var pressSerial = 0

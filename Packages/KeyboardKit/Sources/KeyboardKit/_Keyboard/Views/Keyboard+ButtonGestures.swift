@@ -221,6 +221,11 @@ extension Keyboard {
 
         @SwiftUI.State private var lastDragValue: GestureButtonDragValue?
 
+        #if os(iOS)
+        @SwiftUI.State private var trackedKeyID = UUID()
+        @Environment(\.trackingKeyTouchSurface) private var trackingSurface
+        #endif
+
         @Environment(\.gestureButtonConfiguration) private var configuration
         @Environment(\.keyboardCalloutActionsBuilder) private var calloutActionsBuilder
 
@@ -234,7 +239,24 @@ extension Keyboard {
         }
 
         var body: some View {
-            view.overlay(geometryOverlay)
+            view.overlay(touchOverlay)
+        }
+
+        /// Lyklaborð fork: under a tracked key grid the key installs no
+        /// gesture of its own. It reports its frame and action and shows
+        /// the pressed state it is told about; `KeyTouchTracker` decides
+        /// everything else from raw touches.
+        @ViewBuilder
+        var touchOverlay: some View {
+            #if os(iOS)
+            if let trackingSurface, let action, scrollState == nil {
+                trackedKey(action, on: trackingSurface)
+            } else {
+                geometryOverlay
+            }
+            #else
+            geometryOverlay
+            #endif
         }
         
         @ViewBuilder
@@ -274,6 +296,39 @@ extension Keyboard {
         }
     }
 }
+
+#if os(iOS)
+private extension Keyboard.ButtonGestures {
+
+    func trackedKey(_ action: KeyboardAction, on surface: KeyTouchSurface) -> some View {
+        GeometryReader { geo in
+            // The gesture does nothing; it claims the touch for this key in
+            // SwiftUI's hit-testing. Without it a touch on the upper part of
+            // a top-row key also reaches the suggestion bar, whose tap area
+            // extends down over the keys.
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 0).onChanged { _ in })
+                .preference(
+                    key: KeyTouchKeysPreference.self,
+                    value: [
+                        KeyTouchTracker.Key(
+                            id: trackedKeyID,
+                            hitFrame: geo.frame(in: .global),
+                            calloutFrame: geo.frame(in: .named(calloutContext?.coordinateSpace ?? "")),
+                            action: action,
+                            releaseOutsideTolerance: releaseOutsideTolerance
+                        )
+                    ]
+                )
+                .onReceive(surface.pressEvents) { event in
+                    guard event.key == trackedKeyID, isPressed.wrappedValue != event.isPressed else { return }
+                    isPressed.wrappedValue = event.isPressed
+                }
+        }
+    }
+}
+#endif
 
 private extension View {
 

@@ -106,11 +106,6 @@ public struct GestureButton<Label: View>: View {
     @Environment(\.gestureButtonConfiguration)
     private var environmentConfig
 
-    #if os(iOS)
-    @Environment(\.keyTouchRouter)
-    private var touchRouter
-    #endif
-
     private let isInScrollView: Bool
     private let label: LabelBuilder
     
@@ -150,67 +145,11 @@ public struct GestureButton<Label: View>: View {
     
     var content: some View {
         label(state.isPressed)
-            .overlay(touchView)
+            .overlay(gestureView)
             .onDisappear { state.isRemoved = true }
             .accessibilityAddTraits(.isButton)
     }
-
-    /// Lyklaborð fork: with a ``KeyTouchRouter`` in the environment (and
-    /// outside a scroll view) the button takes raw touches from the router
-    /// and installs no SwiftUI gesture at all.
-    @ViewBuilder
-    var touchView: some View {
-        #if os(iOS)
-        if let touchRouter, !isInScrollView {
-            routedTouchView(touchRouter)
-        } else {
-            gestureView
-        }
-        #else
-        gestureView
-        #endif
-    }
 }
-
-#if os(iOS)
-private extension GestureButton {
-
-    /// Registers the button's frame and handlers with the router. The
-    /// registration is refreshed on every evaluation, so the router always
-    /// holds the handlers of the current view value.
-    func routedTouchView(_ router: KeyTouchRouter) -> some View {
-        GeometryReader { geo in
-            let id = state.routerID
-            let _ = router.register(
-                id: id,
-                frame: geo.frame(in: .global),
-                changed: { handleDragWithState($0) },
-                ended: { handleDragEndedWithState($0, in: geo) },
-                cancelled: { handleCancelled() }
-            )
-            // A gesture that does nothing still has a job: it claims the
-            // touch for this key in SwiftUI's hit-testing. Without it a
-            // touch on the upper part of a top-row key fell through to the
-            // suggestion bar, whose tap area reaches down over the keys, so
-            // one touch both typed the letter and tapped a suggestion.
-            Color.clear
-                .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 0).onChanged { _ in })
-                .onDisappear { router.unregister(id: id) }
-        }
-    }
-
-    /// The system took the touch away (a system gesture began): end the
-    /// press without releasing it.
-    func handleCancelled() {
-        defer { state.stopDragGesture() }
-        guard state.isDragGestureStarted else { return }
-        setScrollGestureDisabledState(false)
-        reset()
-        endAction?()
-    }
-}
-#endif
 
 private extension GestureButton {
     
@@ -315,14 +254,6 @@ private extension GestureButton {
 
 private extension GestureButton {
 
-    var usesTouchRouter: Bool {
-        #if os(iOS)
-        touchRouter != nil && !isInScrollView
-        #else
-        false
-        #endif
-    }
-
     func tryHandlePress(_ value: GestureButtonDragValue) {
         if state.isPressed { return }
         state.isPressed = true
@@ -370,10 +301,6 @@ private extension GestureButton {
     /// and should be replaced by a proper bug fix.
     func tryTriggerCancelAfterDelay() {
         guard let delay = config.cancelDelay else { return }
-        // Lyklaborð fork: the stuck-press guard exists because SwiftUI can
-        // lose a gesture's end event. Routed touches always end or cancel,
-        // so the guard is not armed for them.
-        if usesTouchRouter { return }
         let value = state.lastDragGestureValue
         let pressSerial = state.pressSerial
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
