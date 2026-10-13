@@ -7,6 +7,24 @@ in `scores/history.jsonl`; behavioral contracts live in
 `Packages/TypeEngine/Scenarios/*.scenarios` (scenario comments cite sessions);
 architecture in `docs/adr/`. Newest first.
 
+## 2026-10-13 — TestFlight 1.3 (28) publication
+
+- **Built from** `0bd53e1` (build bump on top of `981a97b`, the merge of PR
+  #18): the proxy resync after deleting a selection, plus the proxy-truth
+  probe and research note. See the entry below.
+- **Gates**: `ReplayRig/run-proxy-probe.sh` 5/5 on the iOS 18.4 simulator
+  with Lyklaborð confirmed on screen. No package sources changed since
+  1.3 (27), so the package suites were not rerun. Not run on a device before
+  upload.
+- **Upload**: 1.3 (28), IPA SHA-256
+  `c695b69f68ec5fbdf599cf2772cc5e514b255f29dca1b2b444d533b4fbe81acf`,
+  processed `VALID` with exempt encryption under build ID
+  `e4b27ecc-d5ae-4359-9dc6-3edcd4374627`.
+- **Groups**: internal `Innri prófun` and external `Vinir`; Beta App Review
+  `WAITING_FOR_REVIEW` on 2026-10-13.
+- **App Store**: untouched. Version 1.3 is still `Waiting for Review` with
+  build 27 attached.
+
 ## 2026-10-13 — Stale proxy after deleting a selection; proxy-truth probe
 
 - **Trigger**: bug report on 1.3 (27), Messages, with a screen recording:
