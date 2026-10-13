@@ -7,6 +7,39 @@ in `scores/history.jsonl`; behavioral contracts live in
 `Packages/TypeEngine/Scenarios/*.scenarios` (scenario comments cite sessions);
 architecture in `docs/adr/`. Newest first.
 
+## 2026-10-13 — Stale proxy after deleting a selection; proxy-truth probe
+
+- **Trigger**: bug report on 1.3 (27), Messages, with a screen recording:
+  while rewording the middle of a draft the bar's literal slot ran one
+  character ahead of the field, then an armed autocorrect on space turned
+  "sagt eitthvað svaraði" into "sagteitthvað  svaraði".
+- **Cause** (reproduced in the simulator, iOS 18.4, 3/3): deleting a
+  SELECTED word makes the host text view also remove an adjacent space
+  (UIKit smart delete), and iOS does not report that second removal.
+  `documentContextBeforeInput` keeps the space until the next selection
+  change in the host; every edit computed from it is then off by one. The
+  reporter's `ð` is the same thing one step on: the next backspace removed
+  the phantom space for the keyboard and a real letter in the field. Plain
+  tap-then-backspace and typing over a selection are clean; a host moving
+  its own caret under fast keystrokes is clean.
+- **Fix** (`KeyboardViewController.resyncProxyAfterSelectionDelete`): after a
+  backspace over a selection, step the caret back one character and forward
+  again 30 ms later; iOS then reports the true context (~35 ms). Measured
+  dead ends: a zero-offset `adjustTextPosition` does nothing, and both steps
+  in one turn are coalesced away. Skipped with fewer than two characters
+  before the caret, so the caret can never be misplaced at the start of a
+  document; a keystroke arriving between the steps completes the pair first.
+- **Harness**: `ReplayHost` gains `PROXY_PROBE=1`, a real `UITextView` that
+  publishes its true text and caret through accessibility;
+  `ProxyStalenessProbeTests` compares that with the bar's literal slot (the
+  keyboard's current word) after every step; `ReplayRig/run-proxy-probe.sh`
+  runs it and treats a skipped test (wrong keyboard on screen) as a failure.
+  `testDeleteSelectedWordThenType` fails without the fix. This is proposal 3
+  of `research/ios-simulator-agent-debugging-2026-10.md` in its smallest
+  form; the identity gate (proposal 1) is still the period-key check.
+- **Not verified**: on a device, in Messages itself, or on iOS 26/27. The
+  simulator host is our own `UITextView`; other hosts may differ.
+
 ## 2026-10-12 — 1.3 (27) replaces 1.3 (26): key-grid touch tracker
 
 - **Why**: 1.3 (26) fixed the emoji keyboard typing letters but introduced

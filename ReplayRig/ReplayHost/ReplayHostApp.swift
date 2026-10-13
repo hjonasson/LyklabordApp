@@ -46,7 +46,13 @@ struct ReplayHostView: View {
     }
 
     var body: some View {
-        if screenshotMode { screenshotBody } else { rigBody }
+        if ProcessInfo.processInfo.environment["PROXY_PROBE"] == "1" {
+            ProxyProbeView()
+        } else if screenshotMode {
+            screenshotBody
+        } else {
+            rigBody
+        }
     }
 
     private var screenshotBody: some View {

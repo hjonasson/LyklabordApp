@@ -1157,6 +1157,9 @@ final class LyklabordActionHandler: KeyboardAction.StandardActionHandler {
         // proxy edits (including the mode-2 insert below); flushed by the
         // tryPerformAutocomplete override, or at the exit fallback for
         // paths that never reach autocomplete. Outermost call only.
+        // A proxy resync still waiting for its forward step completes before
+        // this keystroke reads or touches the text.
+        if ledgerHandleDepth == 0 { finishProxyResync() }
         if ledgerHandleDepth == 0 {
             ledgerBeforeWindow = KeyLatencyProbe.measure(
                 gesture == .press ? "press.ledgerRead" : "other.ledgerRead"
@@ -1166,10 +1169,15 @@ final class LyklabordActionHandler: KeyboardAction.StandardActionHandler {
             ledgerKeystroke = gesture == .release ? Self.ledgerKeystroke(for: action) : nil
             ledgerReplacement = nil
         }
+        // A backspace over a selection needs a proxy resync afterwards — see
+        // `resyncProxyAfterSelectionDelete`.
+        let deletesSelection = ledgerHandleDepth == 0 && action == .backspace
+            && keyboardContext.textDocumentProxy.selectedText?.isEmpty == false
         ledgerHandleDepth += 1
         defer {
             ledgerHandleDepth -= 1
             if ledgerHandleDepth == 0 { recordPendingSelfEdit() }
+            if deletesSelection { resyncProxyAfterSelectionDelete() }
         }
 
         // KeyboardKit 9.9.1 bug (dogfood 2026-07-19, "armed word doesn't
@@ -1335,6 +1343,47 @@ final class LyklabordActionHandler: KeyboardAction.StandardActionHandler {
         }
         super.handle(gesture, on: action, replaced: replaced)
     }
+
+    /// Deleting a selected word makes the host's text view also remove an
+    /// adjacent space (UIKit smart delete), and iOS does not report that
+    /// second removal: `documentContextBeforeInput` keeps the space until the
+    /// next selection change in the host. Every edit built on that stale
+    /// context is then off by one — a backspace deletes the phantom space
+    /// here and a real letter there, and an autocorrect replace eats the
+    /// space before the word (bug report 2026-10-13, 1.3 (27), Messages:
+    /// "sagt eitthvað svaraði" → "sagteitthvað  svaraði").
+    ///
+    /// A real caret move makes iOS re-read the context, so step one
+    /// character back, then forward again a moment later (measured in the
+    /// simulator probe, `ProxyStalenessProbeTests`: the context is truthful
+    /// ~35 ms after the pair; a zero-offset adjust does nothing, and issuing
+    /// both steps in the same turn is coalesced away). Skipped when fewer
+    /// than two characters precede the caret: the stale context can hold one
+    /// phantom character, so the caret may really be at the start of the
+    /// document, where the step back is a no-op and the step forward would
+    /// misplace it. A keystroke that arrives between the two steps completes
+    /// the pair first (`finishProxyResync` at `handle` entry).
+    private func resyncProxyAfterSelectionDelete() {
+        let proxy = keyboardContext.textDocumentProxy
+        guard proxy.selectedText?.isEmpty != false,
+            (proxy.documentContextBeforeInput ?? "").count >= 2
+        else { return }
+        finishProxyResync()
+        proxy.adjustTextPosition(byCharacterOffset: -1)
+        let restore = DispatchWorkItem { [weak self] in self?.finishProxyResync() }
+        pendingProxyResync = restore
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(30), execute: restore)
+    }
+
+    /// The forward half of `resyncProxyAfterSelectionDelete`. Idempotent.
+    private func finishProxyResync() {
+        guard let pending = pendingProxyResync else { return }
+        pendingProxyResync = nil
+        pending.cancel()
+        keyboardContext.textDocumentProxy.adjustTextPosition(byCharacterOffset: 1)
+    }
+
+    private var pendingProxyResync: DispatchWorkItem?
 
     private func executeProxyEdit(_ edit: RevertInstruction) {
         let proxy = keyboardContext.textDocumentProxy
